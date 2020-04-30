@@ -79,10 +79,9 @@
             return ;
         }
         
-        dispatch_async(dispatch_get_main_queue(), ^{
+        TPSafeDispatchMain(^{
             self.indicator.hidden = NO;
             [self.indicator startAnimation:self];
-            
         });
         
         NSDictionary *symbolMap = [self symbolMapFromContent:content];
@@ -101,12 +100,11 @@
         } else {
             [self buildResultWithSymbols:sortedSymbols];
         }
-        
-        dispatch_async(dispatch_get_main_queue(), ^{
+
+        TPSafeDispatchMain(^{
             self.contentTextView.string = _result;
             self.indicator.hidden = YES;
             [self.indicator stopAnimation:self];
-            
         });
     });
 }
@@ -177,11 +175,10 @@
     NSUInteger totalSize = 0;
     
     __block NSString *searchKey;
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    TPSafeDispatchMain(^{
         searchKey = _searchField.stringValue;
     });
 
-    
     for(SymbolModel *symbol in symbols) {
         if (searchKey.length > 0) {
             if ([symbol.file containsString:searchKey]) {
@@ -229,7 +226,10 @@
     
     NSArray *sortedSymbols = [self sortSymbols:combinationSymbols];
     
-    NSString *searchKey = _searchField.stringValue;
+    __block NSString *searchKey;
+    TPSafeDispatchMain(^{
+        searchKey = _searchField.stringValue;
+    });
     
     for(SymbolModel *symbol in sortedSymbols) {
         if (searchKey.length > 0) {
@@ -293,6 +293,15 @@
     [alert addButtonWithTitle:@"确定"];
     [alert beginSheetModalForWindow:[NSApplication sharedApplication].windows[0] completionHandler:^(NSModalResponse returnCode) {
     }];
+}
+
+void TPSafeDispatchMain(dispatch_block_t block){
+    if(block == nil) return;
+    if(NSThread.isMainThread){
+        block();
+    }else{
+        dispatch_async(dispatch_get_main_queue(), block);
+    }
 }
 
 @end
